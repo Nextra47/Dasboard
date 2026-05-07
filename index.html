@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nextra CRM — Painel da Agência</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #0a0a0f; color: #e2e2f0; font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 3px; }
+    .page { display: none; } .page.active { display: block; }
+    .nav-item { transition: all .2s; cursor: pointer; border-left: 3px solid transparent; }
+    .nav-item:hover { background: rgba(99,102,241,.1); color: #818cf8; }
+    .nav-item.active { background: rgba(99,102,241,.15); color: #818cf8; border-left-color: #6366f1; }
+    .card { background: #111827; border: 1px solid #1f2937; border-radius: 14px; }
+    .badge { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600; }
+    .badge-estrategico { background:rgba(255,215,0,.12);color:#ffd700; }
+    .badge-saudavel    { background:rgba(52,211,153,.12);color:#34d399; }
+    .badge-risco       { background:rgba(251,191,36,.12);color:#fbbf24; }
+    .badge-critico     { background:rgba(239,68,68,.12);color:#ef4444; }
+    .badge-inativo     { background:rgba(156,163,175,.12);color:#9ca3af; }
+    .btn-primary { background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:9px;padding:9px 20px;font-weight:700;cursor:pointer;font-size:13px;transition:opacity .2s; }
+    .btn-primary:hover { opacity:.85; }
+    .btn-ghost { background:transparent;color:#6b7280;border:1px solid #1f2937;border-radius:9px;padding:9px 20px;font-weight:600;cursor:pointer;font-size:13px;transition:all .2s; }
+    .btn-ghost:hover { border-color:#6366f1;color:#818cf8; }
+    .input { background:#1a2234;border:1px solid #1f2937;border-radius:9px;color:#e2e2f0;padding:9px 13px;font-size:13px;width:100%;outline:none;transition:border-color .2s; }
+    .input:focus { border-color:#6366f1; }
+    select.input option { background:#1a2234; }
+    .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:none;align-items:center;justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:#111827;border:1px solid #1f2937;border-radius:18px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:30px; }
+    .notification { position:fixed;bottom:24px;right:24px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px 20px;z-index:200;transform:translateY(100px);opacity:0;transition:all .3s;max-width:320px; }
+    .notification.show { transform:translateY(0);opacity:1; }
+    .notification.success { border-color:#34d399; } .notification.warning { border-color:#fbbf24; }
+    .chip { display:inline-flex;align-items:center;gap:5px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);color:#818cf8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500; }
+    .deal-card { background:#1a2234;border:1px solid #1f2937;border-radius:10px;padding:14px;margin-bottom:10px;transition:border-color .2s; }
+    .deal-card:hover { border-color:#6366f1; }
+    .progress-bar { background:#1f2937;border-radius:4px;height:5px;overflow:hidden; }
+    .progress-fill { height:100%;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:4px;transition:width .6s; }
+    .step-circle { width:32px;height:32px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0; }
+    .code-block { background:#0f172a;border:1px solid #1f2937;border-radius:8px;padding:12px 14px;font-family:monospace;font-size:12px;color:#a5b4fc;line-height:1.6; }
+    textarea.input { resize:vertical;min-height:80px; }
+    .sidebar { width:220px;min-width:220px; }
+    .kpi-card { background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px; }
+    .interaction-item { border-left:3px solid #1f2937;padding-left:14px;margin-bottom:16px; }
+    .interaction-item.call { border-color:#6366f1; } .interaction-item.meet { border-color:#fbbf24; }
+    .interaction-item.email { border-color:#34d399; } .interaction-item.note { border-color:#9ca3af; }
+    .kanban-col { min-width:200px;flex:1; }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- SIDEBAR -->
+<aside class="sidebar bg-gray-900 border-r border-gray-800 flex flex-col py-6 gap-1 shrink-0">
+  <div class="px-5 mb-6">
+    <div class="flex items-center gap-2 mb-1">
+      <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center text-white font-bold text-sm">N</div>
+      <span class="font-bold text-white text-sm">Nextra CRM</span>
+    </div>
+    <div class="text-xs text-gray-500 mt-0.5">Painel da Agência</div>
+  </div>
+
+  <div class="nav-item active px-4 py-2.5 mx-2 flex items-center gap-3 text-sm font-medium rounded-lg" onclick="navigate('dashboard')">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+    Dashboard
+  </div>
+  <div class="nav-item px-4 py-2.5 mx-2 flex items-center gap-3 text-sm font-medium rounded-lg" onclick="navigate('clientes')">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+    Clientes
+  </div>
+  <div class="nav-item px-4 py-2.5 mx-2 flex items-center gap-3 text-sm font-medium rounded-lg" onclick="navigate('pipeline')">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    Pipeline
+  </div>
+  <div class="nav-item px-4 py-2.5 mx-2 flex items-center gap-3 text-sm font-medium rounded-lg" onclick="navigate('webhook')">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+    Notificações
+  </div>
+  <div class="nav-item px-4 py-2.5 mx-2 flex items-center gap-3 text-sm font-medium rounded-lg" onclick="navigate('financeiro')">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Financeiro
+  </div>
+  <div class="nav-item px-4 py-2.5 mx-2 flex items-center gap-3 text-sm font-medium rounded-lg" onclick="navigate('instalar')">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Instalar Extensão
+  </div>
+
+  <div class="mt-auto px-4 py-3 mx-2 border-t border-gray-800">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full bg-brand-700 flex items-center justify-center text-xs font-bold text-white">A</div>
+      <div>
+        <div class="text-xs font-semibold text-white">Admin</div>
+        <div class="text-xs text-gray-500">Nextra Agência</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="flex-1 overflow-y-auto">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Dashboard da Agência</h1>
+        <p class="text-gray-400 text-sm mt-1" id="dashboard-date"></p>
+      </div>
+      <button class="btn-primary" onclick="openModal('modal-cliente')">+ Novo Cliente</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="kpi-card">
+        <div class="text-xs text-gray-400 mb-1">MRR Total</div>
+        <div class="text-2xl font-bold text-white" id="kpi-mrr">R$ 0</div>
+        <div class="text-xs text-gray-500 mt-1">receita mensal recorrente</div>
+      </div>
+      <div class="kpi-card">
+        <div class="text-xs text-gray-400 mb-1">Clientes Ativos</div>
+        <div class="text-2xl font-bold text-white" id="kpi-ativos">0</div>
+        <div class="text-xs text-gray-500 mt-1" id="kpi-estrategicos"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="text-xs text-gray-400 mb-1">Ticket Médio</div>
+        <div class="text-2xl font-bold text-white" id="kpi-ticket">R$ 0</div>
+        <div class="text-xs text-gray-500 mt-1">por cliente/mês</div>
+      </div>
+      <div class="kpi-card">
+        <div class="text-xs text-gray-400 mb-1">Em Risco</div>
+        <div class="text-2xl font-bold text-red-400" id="kpi-risco">0</div>
+        <div class="text-xs text-gray-500 mt-1">atenção necessária</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="card p-5 lg:col-span-2">
+        <div class="text-sm font-semibold text-white mb-4">Distribuição da Carteira</div>
+        <canvas id="chart-carteira" height="180"></canvas>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm font-semibold text-white mb-4">🔔 Alertas</div>
+        <div id="alertas-list" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Banner Extensão WhatsApp -->
+    <div class="card p-5 mb-6 border-brand-700" style="background:linear-gradient(135deg,#1e1b4b,#111827);border-color:#4338ca">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center text-2xl">📱</div>
+          <div>
+            <div class="font-bold text-white text-base">Extensão WhatsApp CRM</div>
+            <div class="text-sm text-gray-400 mt-0.5">Seus clientes gerenciam leads direto no WhatsApp Web com pipeline, notas e disparo</div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="navigate('instalar')">Ver como instalar →</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="card p-5">
+        <div class="text-sm font-semibold text-white mb-4">Próximas Ações</div>
+        <div id="proximas-acoes" class="space-y-3"></div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm font-semibold text-white mb-4">Renovações Próximas</div>
+        <div id="renovacoes-list" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div id="page-clientes" class="page p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div><h1 class="text-2xl font-bold text-white">Clientes</h1><p class="text-gray-400 text-sm mt-1">Gestão completa da carteira</p></div>
+      <button class="btn-primary" onclick="openModal('modal-cliente')">+ Novo Cliente</button>
+    </div>
+    <div class="flex flex-wrap gap-3 mb-5">
+      <input class="input" style="max-width:240px" placeholder="🔍 Buscar..." id="search-clientes" oninput="renderClientes()">
+      <select class="input" style="max-width:180px" id="filter-categoria" onchange="renderClientes()">
+        <option value="">Todas</option>
+        <option value="estrategico">⭐ Estratégico</option>
+        <option value="saudavel">✅ Saudável</option>
+        <option value="risco">⚠️ Em Risco</option>
+        <option value="critico">🔴 Crítico</option>
+        <option value="inativo">💤 Inativo</option>
+      </select>
+      <select class="input" style="max-width:160px" id="filter-sort" onchange="renderClientes()">
+        <option value="nome">Nome A-Z</option>
+        <option value="ticket-desc">Maior ticket</option>
+        <option value="ticket-asc">Menor ticket</option>
+      </select>
+    </div>
+    <div id="clientes-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+  </div>
+
+  <!-- PIPELINE -->
+  <div id="page-pipeline" class="page p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div><h1 class="text-2xl font-bold text-white">Pipeline de Upsell</h1><p class="text-gray-400 text-sm mt-1">Oportunidades em andamento</p></div>
+      <button class="btn-primary" onclick="openModal('modal-deal')">+ Oportunidade</button>
+    </div>
+    <div class="flex gap-4 overflow-x-auto pb-4" id="pipeline-board"></div>
+  </div>
+
+  <!-- NOTIFICAÇÕES / WEBHOOK -->
+  <div id="page-webhook" class="page p-6">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-white">Notificações de Deals</h1>
+      <p class="text-gray-400 text-sm mt-1">Receba alertas quando seus clientes fecharem negócios no WhatsApp CRM</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="card p-6">
+        <div class="text-base font-bold text-white mb-4">🔗 Configurar Webhook</div>
+        <p class="text-sm text-gray-400 mb-5">
+          Quando um cliente marcar um lead como <strong class="text-green-400">Fechado</strong> na extensão do WhatsApp, você recebe uma notificação automática nessa URL.
+        </p>
+        <div class="mb-3">
+          <label class="text-xs text-gray-400 block mb-2">URL do Webhook</label>
+          <input class="input" id="webhook-url" placeholder="https://seu-servidor.com/webhook">
+        </div>
+        <button class="btn-primary" onclick="salvarWebhook()">Salvar Webhook</button>
+
+        <div class="mt-5 pt-5 border-t border-gray-800">
+          <div class="text-xs font-semibold text-gray-400 mb-3">PAYLOAD RECEBIDO (exemplo)</div>
+          <div class="code-block">{
+  "event": "deal_fechado",
+  "contact": {
+    "name": "João Silva",
+    "stage": "fechado",
+    "tags": ["VIP", "Indicação"]
+  },
+  "agent": "Maria Agente",
+  "ts": 1714000000000
+}</div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <div class="text-base font-bold text-white mb-4">📬 Feed de Eventos</div>
+        <div id="eventos-feed" class="space-y-3">
+          <div class="text-sm text-gray-500 text-center py-8">Nenhum evento recebido ainda.<br><span class="text-xs">Configure o webhook e peça para seu cliente usar a extensão.</span></div>
+        </div>
+        <button class="btn-ghost w-full mt-4 text-sm" onclick="simularEvento()">🧪 Simular evento de teste</button>
+      </div>
+    </div>
+
+    <div class="card p-6 mt-5">
+      <div class="text-base font-bold text-white mb-4">📊 Resumo de Eventos</div>
+      <div id="eventos-resumo" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="kpi-card"><div class="text-2xl font-bold text-white" id="ev-total">0</div><div class="text-xs text-gray-400 mt-1">Total de eventos</div></div>
+        <div class="kpi-card"><div class="text-2xl font-bold text-green-400" id="ev-fechados">0</div><div class="text-xs text-gray-400 mt-1">Deals fechados</div></div>
+        <div class="kpi-card"><div class="text-2xl font-bold text-red-400" id="ev-perdidos">0</div><div class="text-xs text-gray-400 mt-1">Deals perdidos</div></div>
+        <div class="kpi-card"><div class="text-2xl font-bold text-brand-400" id="ev-agentes">0</div><div class="text-xs text-gray-400 mt-1">Agentes ativos</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSTALAR EXTENSÃO -->
+  <div id="page-instalar" class="page p-6">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-white">Instalar Extensão Chrome</h1>
+      <p class="text-gray-400 text-sm mt-1">Guia passo a passo para entregar a extensão ao seu cliente</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- Passos -->
+      <div class="space-y-4">
+        <div class="card p-5">
+          <div class="text-sm font-bold text-white mb-4">🚀 Instalação Rápida (sem Chrome Store)</div>
+          <div class="space-y-4">
+            <div class="flex gap-3">
+              <div class="step-circle">1</div>
+              <div>
+                <div class="font-semibold text-white text-sm">Baixe a pasta da extensão</div>
+                <div class="text-xs text-gray-400 mt-1">Compacte a pasta <code class="text-brand-400">extension/</code> em .zip e envie para o cliente</div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-circle">2</div>
+              <div>
+                <div class="font-semibold text-white text-sm">Abra o Chrome → Extensões</div>
+                <div class="code-block mt-1 text-xs">chrome://extensions</div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-circle">3</div>
+              <div>
+                <div class="font-semibold text-white text-sm">Ative o "Modo desenvolvedor"</div>
+                <div class="text-xs text-gray-400 mt-1">Toggle no canto superior direito da página de extensões</div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-circle">4</div>
+              <div>
+                <div class="font-semibold text-white text-sm">Clique em "Carregar sem compactação"</div>
+                <div class="text-xs text-gray-400 mt-1">Selecione a pasta <code class="text-brand-400">extension/</code> descompactada</div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-circle">5</div>
+              <div>
+                <div class="font-semibold text-white text-sm">Acesse web.whatsapp.com</div>
+                <div class="text-xs text-gray-400 mt-1">O painel Nextra CRM aparece automaticamente na direita ⚡</div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-circle">6</div>
+              <div>
+                <div class="font-semibold text-white text-sm">Configure em ⚙️ Config</div>
+                <div class="text-xs text-gray-400 mt-1">Nome do agente + URL do webhook da agência para notificações</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- O que a extensão faz -->
+      <div class="space-y-4">
+        <div class="card p-5">
+          <div class="text-sm font-bold text-white mb-4">✨ O que a extensão faz</div>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3 p-3 rounded-lg" style="background:#1a2234">
+              <span class="text-lg">👤</span>
+              <div><div class="text-sm font-semibold text-white">Identifica o contato aberto</div><div class="text-xs text-gray-400">Detecta automaticamente quem está na conversa</div></div>
+            </div>
+            <div class="flex items-start gap-3 p-3 rounded-lg" style="background:#1a2234">
+              <span class="text-lg">📊</span>
+              <div><div class="text-sm font-semibold text-white">Pipeline de 6 etapas</div><div class="text-xs text-gray-400">Novo Lead → Em Contato → Proposta → Negociando → Fechado / Perdido</div></div>
+            </div>
+            <div class="flex items-start gap-3 p-3 rounded-lg" style="background:#1a2234">
+              <span class="text-lg">📝</span>
+              <div><div class="text-sm font-semibold text-white">Notas e tags por contato</div><div class="text-xs text-gray-400">Histórico completo de cada lead</div></div>
+            </div>
+            <div class="flex items-start gap-3 p-3 rounded-lg" style="background:#1a2234">
+              <span class="text-lg">📨</span>
+              <div><div class="text-sm font-semibold text-white">Disparo em massa com delay</div><div class="text-xs text-gray-400">Envia para vários contatos com delay configurável + aviso de risco</div></div>
+            </div>
+            <div class="flex items-start gap-3 p-3 rounded-lg" style="background:#1a2234">
+              <span class="text-lg">🔔</span>
+              <div><div class="text-sm font-semibold text-white">Notifica a agência</div><div class="text-xs text-gray-400">Quando um deal é fechado, você recebe webhook em tempo real</div></div>
+            </div>
+            <div class="flex items-start gap-3 p-3 rounded-lg" style="background:#1a2234">
+              <span class="text-lg">📥</span>
+              <div><div class="text-sm font-semibold text-white">Exporta CSV</div><div class="text-xs text-gray-400">Exporta todos os leads com etapas, tags e notas</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-5" style="border-color:#854d0e;background:#431407">
+          <div class="text-sm font-bold text-yellow-400 mb-2">⚠️ Avisos Importantes</div>
+          <div class="text-xs text-yellow-600 space-y-1.5">
+            <div>• O disparo em massa <strong>não é oficial</strong> e pode causar ban do número</div>
+            <div>• Oriente o cliente a usar delays de mínimo 20 segundos</div>
+            <div>• O WhatsApp pode pedir verificação após uso intenso</div>
+            <div>• A extensão funciona apenas no <strong>WhatsApp Web</strong> (não no app)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETALHE CLIENTE -->
+  <div id="page-cliente-detalhe" class="page p-6">
+    <button onclick="navigate('clientes')" class="flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-5 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      Voltar para Clientes
+    </button>
+    <div id="detalhe-content"></div>
+  </div>
+
+</main>
+
+<!-- ===== MODAIS ===== -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-white" id="modal-cliente-title">Novo Cliente</h2>
+      <button onclick="closeModal('modal-cliente')" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <form id="form-cliente" onsubmit="salvarCliente(event)" class="space-y-3">
+      <input type="hidden" id="cliente-id">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Empresa *</label><input class="input" id="c-empresa" required placeholder="Nome da empresa"></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Contato *</label><input class="input" id="c-contato" required placeholder="Nome do responsável"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Email</label><input class="input" id="c-email" type="email" placeholder="email@empresa.com"></div>
+        <div><label class="text-xs text-gray-400 block mb-1">WhatsApp</label><input class="input" id="c-whatsapp" placeholder="(11) 99999-9999"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Ticket Mensal (R$) *</label><input class="input" id="c-ticket" type="number" required placeholder="0"></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Categoria</label>
+          <select class="input" id="c-categoria">
+            <option value="saudavel">✅ Saudável</option>
+            <option value="estrategico">⭐ Estratégico</option>
+            <option value="risco">⚠️ Em Risco</option>
+            <option value="critico">🔴 Crítico</option>
+            <option value="inativo">💤 Inativo</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Início do Contrato</label><input class="input" id="c-inicio" type="date"></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Vencimento</label><input class="input" id="c-vencimento" type="date"></div>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 block mb-2">Serviços Contratados</label>
+        <div class="flex flex-wrap gap-3">
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="Social Media" class="serv-check accent-brand-500"> Social Media</label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="Tráfego Pago" class="serv-check accent-brand-500"> Tráfego Pago</label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="SEO" class="serv-check accent-brand-500"> SEO</label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="Landing Page" class="serv-check accent-brand-500"> Landing Page</label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="Produção de Vídeo" class="serv-check accent-brand-500"> Produção de Vídeo</label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="Email Marketing" class="serv-check accent-brand-500"> Email Marketing</label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer text-gray-300"><input type="checkbox" value="Consultoria" class="serv-check accent-brand-500"> Consultoria</label>
+        </div>
+      </div>
+      <div><label class="text-xs text-gray-400 block mb-1">Observações</label><textarea class="input" id="c-obs" placeholder="Notas sobre o cliente..."></textarea></div>
+      <div class="flex gap-2 justify-end pt-2">
+        <button type="button" class="btn-ghost" onclick="closeModal('modal-cliente')">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar Cliente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-interacao">
+  <div class="modal" style="max-width:440px">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-white">Registrar Interação</h2>
+      <button onclick="closeModal('modal-interacao')" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <form onsubmit="salvarInteracao(event)" class="space-y-3">
+      <input type="hidden" id="int-cliente-id">
+      <div><label class="text-xs text-gray-400 block mb-1">Tipo</label>
+        <select class="input" id="int-tipo">
+          <option value="call">📞 Ligação</option><option value="email">📧 Email</option>
+          <option value="meet">🎥 Reunião</option><option value="note">📝 Nota</option>
+          <option value="whatsapp">💬 WhatsApp</option>
+        </select>
+      </div>
+      <div><label class="text-xs text-gray-400 block mb-1">Data</label><input class="input" id="int-data" type="date" required></div>
+      <div><label class="text-xs text-gray-400 block mb-1">Descrição *</label><textarea class="input" id="int-desc" required placeholder="O que foi discutido..."></textarea></div>
+      <div><label class="text-xs text-gray-400 block mb-1">Próximo Passo</label><input class="input" id="int-proximo" placeholder="Ex: Enviar proposta em 3 dias"></div>
+      <div class="flex gap-2 justify-end pt-2">
+        <button type="button" class="btn-ghost" onclick="closeModal('modal-interacao')">Cancelar</button>
+        <button type="submit" class="btn-primary">Registrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-deal">
+  <div class="modal" style="max-width:440px">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-white">Nova Oportunidade</h2>
+      <button onclick="closeModal('modal-deal')" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+    </div>
+    <form onsubmit="salvarDeal(event)" class="space-y-3">
+      <div><label class="text-xs text-gray-400 block mb-1">Cliente *</label><select class="input" id="deal-cliente" required></select></div>
+      <div><label class="text-xs text-gray-400 block mb-1">Serviço / Oferta *</label><input class="input" id="deal-servico" required placeholder="Ex: Tráfego Pago"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Valor (R$) *</label><input class="input" id="deal-valor" type="number" required placeholder="0"></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Probabilidade (%)</label><input class="input" id="deal-prob" type="number" min="0" max="100" value="50"></div>
+      </div>
+      <div><label class="text-xs text-gray-400 block mb-1">Etapa</label>
+        <select class="input" id="deal-etapa">
+          <option value="identificado">Identificado</option><option value="abordado">Abordado</option>
+          <option value="proposta">Proposta Enviada</option><option value="negociacao">Em Negociação</option>
+          <option value="fechado">Fechado ✓</option><option value="perdido">Perdido ✗</option>
+        </select>
+      </div>
+      <div><label class="text-xs text-gray-400 block mb-1">Observação</label><textarea class="input" id="deal-obs" placeholder="Contexto da oportunidade..."></textarea></div>
+      <div class="flex gap-2 justify-end pt-2">
+        <button type="button" class="btn-ghost" onclick="closeModal('modal-deal')">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== PAGE FINANCEIRO ===================== -->
+<div id="page-financeiro" class="page p-6">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Financeiro</h1>
+      <p class="text-gray-400 text-sm mt-1">Receitas e faturamento da agência</p>
+    </div>
+    <div class="flex gap-3 items-center">
+      <select id="fin-filtro-mes" class="input" style="width:auto" onchange="renderFinanceiro()">
+      </select>
+      <button class="btn-primary" onclick="document.getElementById('r-data').value=new Date().toISOString().split('T')[0];openModal('modal-receita')">+ Nova Receita</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="kpi-card">
+      <div class="text-xs text-gray-400 mb-1">Faturado no Mês</div>
+      <div class="text-2xl font-bold text-green-400" id="fin-kpi-mes">R$ 0</div>
+      <div class="text-xs text-gray-500 mt-1">receitas recebidas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="text-xs text-gray-400 mb-1">A Receber</div>
+      <div class="text-2xl font-bold text-yellow-400" id="fin-kpi-pendente">R$ 0</div>
+      <div class="text-xs text-gray-500 mt-1">pagamentos pendentes</div>
+    </div>
+    <div class="kpi-card">
+      <div class="text-xs text-gray-400 mb-1">Total no Ano</div>
+      <div class="text-2xl font-bold text-white" id="fin-kpi-ano">R$ 0</div>
+      <div class="text-xs text-gray-500 mt-1" id="fin-kpi-ano-label">faturado em 2026</div>
+    </div>
+    <div class="kpi-card">
+      <div class="text-xs text-gray-400 mb-1">Média Mensal</div>
+      <div class="text-2xl font-bold text-brand-400" id="fin-kpi-media">R$ 0</div>
+      <div class="text-xs text-gray-500 mt-1">últimos 3 meses</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <!-- Gráfico mensal -->
+    <div class="card p-5 lg:col-span-2">
+      <div class="text-sm font-bold text-white mb-4">Faturamento Mensal</div>
+      <canvas id="fin-chart" height="100"></canvas>
+    </div>
+    <!-- Top serviços -->
+    <div class="card p-5">
+      <div class="text-sm font-bold text-white mb-4">Por Tipo de Serviço</div>
+      <div id="fin-servicos"></div>
+    </div>
+  </div>
+
+  <!-- Tabela de lançamentos -->
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-sm font-bold text-white">Lançamentos</div>
+      <div class="text-xs text-gray-500" id="fin-count"></div>
+    </div>
+    <div class="overflow-x-auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid #1f2937;">
+            <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;">Data</th>
+            <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;">Cliente</th>
+            <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;">Serviço</th>
+            <th style="text-align:left;padding:8px 12px;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;">Tipo</th>
+            <th style="text-align:right;padding:8px 12px;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;">Valor</th>
+            <th style="text-align:center;padding:8px 12px;color:#6b7280;font-weight:600;font-size:11px;text-transform:uppercase;">Status</th>
+            <th style="padding:8px 12px;"></th>
+          </tr>
+        </thead>
+        <tbody id="fin-tabela"></tbody>
+      </table>
+      <div id="fin-vazio" class="text-center text-gray-500 text-sm py-10" style="display:none;">
+        Nenhum lançamento ainda. Clique em <strong>+ Nova Receita</strong> para começar.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA RECEITA -->
+<div class="modal-overlay" id="modal-receita">
+  <div class="modal" style="max-width:480px">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-bold text-white">Nova Receita</h2>
+      <button onclick="closeModal('modal-receita')" class="text-gray-500 hover:text-white text-xl leading-none">×</button>
+    </div>
+    <form onsubmit="salvarReceita(event)">
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Data</label>
+          <input type="date" id="r-data" class="input" required>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Valor (R$)</label>
+          <input type="number" id="r-valor" class="input" placeholder="0,00" min="0" step="0.01" required>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs text-gray-400 mb-1">Cliente</label>
+        <input type="text" id="r-cliente" class="input" placeholder="Nome do cliente ou empresa" required>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs text-gray-400 mb-1">Serviço</label>
+        <input type="text" id="r-servico" class="input" placeholder="Ex: Criação de Site, Tráfego Pago, Social Media..." list="servicos-list" required>
+        <datalist id="servicos-list">
+          <option value="Criação de Site">
+          <option value="Social Media">
+          <option value="Tráfego Pago">
+          <option value="SEO">
+          <option value="Landing Page">
+          <option value="Identidade Visual / Logo">
+          <option value="Produção de Vídeo">
+          <option value="Email Marketing">
+          <option value="Consultoria">
+          <option value="Manutenção de Site">
+          <option value="CRM Nextra">
+        </datalist>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Tipo</label>
+          <select id="r-tipo" class="input">
+            <option value="avulso">Avulso (único)</option>
+            <option value="recorrente">Recorrente (mensal)</option>
+            <option value="parcelado">Parcelado</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Status</label>
+          <select id="r-status" class="input">
+            <option value="recebido">✅ Recebido</option>
+            <option value="pendente">⏳ Pendente</option>
+          </select>
+        </div>
+      </div>
+      <div class="mb-5">
+        <label class="block text-xs text-gray-400 mb-1">Observação (opcional)</label>
+        <input type="text" id="r-obs" class="input" placeholder="Ex: 50% entrada + 50% na entrega">
+      </div>
+      <div class="flex gap-2 justify-end">
+        <button type="button" class="btn-ghost" onclick="closeModal('modal-receita')">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar Receita</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="notification" id="notification">
+  <div class="flex items-center gap-2">
+    <span id="notif-icon">✓</span>
+    <span id="notif-msg" class="text-sm font-medium"></span>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let DB = { clientes:[], interacoes:[], deals:[], tarefas:[], eventos:[], webhookUrl:'' };
+let currentClienteId = null;
+let chartCarteira = null;
+
+function loadDB() {
+  const s = localStorage.getItem('nextra-agency-v2');
+  if (s) { try { DB = JSON.parse(s); } catch(e) {} }
+  else seedData();
+  if (!DB.eventos) DB.eventos = [];
+  if (!DB.webhookUrl) DB.webhookUrl = '';
+  if (!DB.financeiro) DB.financeiro = [];
+}
+function saveDB() { localStorage.setItem('nextra-agency-v2', JSON.stringify(DB)); }
+function uid() { return Math.random().toString(36).substr(2,9) + Date.now().toString(36); }
+
+function seedData() {
+  const hoje = new Date(), fmt = d=>d.toISOString().split('T')[0];
+  const sub = n=>{ const d=new Date(hoje); d.setDate(d.getDate()-n); return fmt(d); };
+  const add = n=>{ const d=new Date(hoje); d.setDate(d.getDate()+n); return fmt(d); };
+  DB.clientes = [
+    { id:uid(), empresa:'Clínica Bella Pele', contato:'Dra. Carla Mendes', email:'carla@bellapele.com', whatsapp:'(11) 98765-4321', ticket:4500, categoria:'estrategico', inicio:sub(365), vencimento:add(30), servicos:['Social Media','Tráfego Pago','Landing Page'], obs:'Excelente cliente. Potencial para produção de vídeo.' },
+    { id:uid(), empresa:'Academia FitLife', contato:'Carlos Drummond', email:'carlos@fitlife.com', whatsapp:'(11) 91234-5678', ticket:2800, categoria:'saudavel', inicio:sub(180), vencimento:add(90), servicos:['Social Media','Tráfego Pago'], obs:'Resultados consistentes. Aberto a novas propostas.' },
+    { id:uid(), empresa:'Restaurante Sabor & Arte', contato:'Ana Souza', email:'ana@saborearte.com', whatsapp:'(11) 97654-3210', ticket:1800, categoria:'risco', inicio:sub(120), vencimento:add(60), servicos:['Social Media'], obs:'Reclamou do volume de posts. Agendar reunião urgente.' },
+    { id:uid(), empresa:'Escritório JB Advocacia', contato:'Dr. João Batista', email:'jb@jbadvocacia.com', whatsapp:'(11) 99876-5432', ticket:3200, categoria:'saudavel', inicio:sub(240), vencimento:add(45), servicos:['SEO','Landing Page','Email Marketing'], obs:'Muito satisfeito com SEO.' },
+    { id:uid(), empresa:'Construtora Alpha', contato:'Roberto Alves', email:'roberto@alphaconst.com', whatsapp:'(11) 98901-2345', ticket:5500, categoria:'estrategico', inicio:sub(300), vencimento:add(120), servicos:['Tráfego Pago','Landing Page','SEO','Consultoria'], obs:'Top cliente. ROI excepcional.' },
+    { id:uid(), empresa:'Moda Store', contato:'Fernanda Lima', email:'fernanda@modastre.com', whatsapp:'(11) 96543-2109', ticket:0, categoria:'inativo', inicio:sub(400), vencimento:sub(30), servicos:['Social Media'], obs:'Parou em jan/24. Reativar em campanha.' },
+  ];
+  const c1=DB.clientes[0].id, c2=DB.clientes[1].id, c3=DB.clientes[2].id;
+  DB.interacoes = [
+    { id:uid(), clienteId:c1, tipo:'meet', data:sub(5), desc:'Reunião mensal — crescimento de 34% em leads.', proximo:'Enviar proposta de vídeo' },
+    { id:uid(), clienteId:c2, tipo:'call', data:sub(10), desc:'Check mensal — satisfeito com resultado.', proximo:'Proposta de landing page' },
+    { id:uid(), clienteId:c3, tipo:'email', data:sub(3), desc:'Cliente reclamou do volume de posts.', proximo:'Reunião urgente' },
+  ];
+  DB.deals = [
+    { id:uid(), clienteId:c1, servico:'Produção de Vídeo', valor:2000, prob:70, etapa:'proposta', obs:'Aguardando aprovação.' },
+    { id:uid(), clienteId:c2, servico:'Landing Page', valor:1500, prob:55, etapa:'abordado', obs:'Apresentamos ideia.' },
+    { id:uid(), clienteId:DB.clientes[3].id, servico:'Social Media', valor:2500, prob:80, etapa:'negociacao', obs:'Negociando valor.' },
+  ];
+  DB.tarefas = [
+    { id:uid(), desc:'Ligar para Sabor & Arte — risco de churn', clienteId:c3, data:fmt(hoje), prioridade:'alta', concluida:false },
+    { id:uid(), desc:'Enviar proposta de vídeo — Bella Pele', clienteId:c1, data:add(3), prioridade:'alta', concluida:false },
+  ];
+  DB.eventos = [
+    { id:uid(), event:'deal_fechado', contact:'João Silva', agent:'Maria Agente', ts:Date.now()-3600000 },
+    { id:uid(), event:'deal_fechado', contact:'Fernanda Costa', agent:'Pedro Vendas', ts:Date.now()-86400000 },
+  ];
+  saveDB();
+}
+
+// ===== NAVIGATION =====
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.getAttribute('onclick')?.includes("'"+page+"'")) n.classList.add('active');
+  });
+  if(page==='dashboard') renderDashboard();
+  else if(page==='clientes') renderClientes();
+  else if(page==='pipeline') renderPipeline();
+  else if(page==='webhook') renderEventos();
+  else if(page==='financeiro') renderFinanceiro();
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  document.getElementById('dashboard-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const ativos = DB.clientes.filter(c=>c.categoria!=='inativo');
+  const mrr = ativos.reduce((s,c)=>s+(c.ticket||0),0);
+  const ticket = ativos.length ? mrr/ativos.length : 0;
+  const risco = DB.clientes.filter(c=>c.categoria==='risco'||c.categoria==='critico').length;
+  document.getElementById('kpi-mrr').textContent = 'R$ '+mrr.toLocaleString('pt-BR');
+  document.getElementById('kpi-ativos').textContent = ativos.length;
+  document.getElementById('kpi-estrategicos').textContent = DB.clientes.filter(c=>c.categoria==='estrategico').length+' estratégicos';
+  document.getElementById('kpi-ticket').textContent = 'R$ '+Math.round(ticket).toLocaleString('pt-BR');
+  document.getElementById('kpi-risco').textContent = risco;
+
+  const cats = {estrategico:0,saudavel:0,risco:0,critico:0,inativo:0};
+  DB.clientes.forEach(c=>cats[c.categoria]++);
+  const ctx = document.getElementById('chart-carteira').getContext('2d');
+  if(chartCarteira) chartCarteira.destroy();
+  chartCarteira = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['⭐ Estratégico','✅ Saudável','⚠️ Risco','🔴 Crítico','💤 Inativo'],
+      datasets:[{label:'Clientes',data:[cats.estrategico,cats.saudavel,cats.risco,cats.critico,cats.inativo],
+        backgroundColor:['rgba(255,215,0,.35)','rgba(52,211,153,.35)','rgba(251,191,36,.35)','rgba(239,68,68,.35)','rgba(156,163,175,.2)'],
+        borderColor:['#ffd700','#34d399','#fbbf24','#ef4444','#9ca3af'],borderWidth:2,borderRadius:8}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#6b7280',font:{size:11}}},
+              y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#6b7280',stepSize:1}}}}
+  });
+
+  // Alertas
+  const alertas = [];
+  const hoje30 = new Date(); hoje30.setDate(hoje30.getDate()+30);
+  DB.clientes.forEach(c=>{
+    if(c.categoria==='risco') alertas.push({t:'warn',m:`⚠️ ${c.empresa} — risco de churn`});
+    if(c.categoria==='critico') alertas.push({t:'err',m:`🔴 ${c.empresa} — situação crítica`});
+    if(c.vencimento&&new Date(c.vencimento)<=hoje30&&new Date(c.vencimento)>=new Date()&&c.categoria!=='inativo'){
+      const dias=Math.ceil((new Date(c.vencimento)-new Date())/86400000);
+      alertas.push({t:'warn',m:`📅 ${c.empresa} — renova em ${dias}d`});
+    }
+  });
+  document.getElementById('alertas-list').innerHTML = alertas.length
+    ? alertas.map(a=>`<div class="p-2 rounded-lg text-xs ${a.t==='err'?'bg-red-950 border border-red-800':'bg-yellow-950 border border-yellow-800'}">${a.m}</div>`).join('')
+    : '<div class="text-sm text-gray-500 text-center py-4">Nenhum alerta 🎉</div>';
+
+  // Próximas ações
+  const pa = DB.tarefas.filter(t=>!t.concluida).sort((a,b)=>new Date(a.data)-new Date(b.data)).slice(0,5);
+  document.getElementById('proximas-acoes').innerHTML = pa.map(t=>{
+    const c=DB.clientes.find(x=>x.id===t.clienteId);
+    const atrasada=new Date(t.data)<new Date();
+    return `<div class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-900 border border-gray-800 cursor-pointer hover:border-brand-600 transition-colors">
+      <div class="w-2 h-2 rounded-full shrink-0 ${t.prioridade==='alta'?'bg-red-400':'bg-blue-400'}"></div>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-medium text-white truncate">${t.desc}</div>
+        <div class="text-xs text-gray-500">${c?c.empresa:''} · <span class="${atrasada?'text-red-400':''}">${fmtData(t.data)}</span></div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="text-sm text-gray-500 text-center py-4">Nenhuma tarefa pendente</div>';
+
+  // Renovações
+  const renovs = DB.clientes.filter(c=>{
+    if(!c.vencimento||c.categoria==='inativo') return false;
+    const d=new Date(c.vencimento), diff=(d-new Date())/86400000;
+    return diff>=0&&diff<=90;
+  }).sort((a,b)=>new Date(a.vencimento)-new Date(b.vencimento));
+  document.getElementById('renovacoes-list').innerHTML = renovs.map(c=>{
+    const dias=Math.ceil((new Date(c.vencimento)-new Date())/86400000);
+    const cor=dias<=30?'text-red-400':dias<=60?'text-yellow-400':'text-green-400';
+    return `<div class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-900 border border-gray-800 cursor-pointer hover:border-brand-600 transition-colors" onclick="abrirDetalhe('${c.id}')">
+      <div class="flex-1"><div class="text-xs font-medium text-white">${c.empresa}</div><div class="text-xs text-gray-500">R$ ${c.ticket.toLocaleString('pt-BR')}/mês</div></div>
+      <div class="text-right"><div class="text-xs font-bold ${cor}">${dias}d</div><div class="text-xs text-gray-500">${fmtData(c.vencimento)}</div></div>
+    </div>`;
+  }).join('')||'<div class="text-sm text-gray-500 text-center py-4">Nenhuma nos próximos 90 dias</div>';
+}
+
+// ===== CLIENTES =====
+function renderClientes() {
+  const busca=(document.getElementById('search-clientes')?.value||'').toLowerCase();
+  const catF=document.getElementById('filter-categoria')?.value||'';
+  const sort=document.getElementById('filter-sort')?.value||'nome';
+  let lista=DB.clientes.filter(c=>(!busca||c.empresa.toLowerCase().includes(busca)||c.contato.toLowerCase().includes(busca))&&(!catF||c.categoria===catF));
+  if(sort==='nome') lista.sort((a,b)=>a.empresa.localeCompare(b.empresa));
+  else if(sort==='ticket-desc') lista.sort((a,b)=>b.ticket-a.ticket);
+  else if(sort==='ticket-asc') lista.sort((a,b)=>a.ticket-b.ticket);
+  const labels={estrategico:'badge-estrategico ⭐ Estratégico',saudavel:'badge-saudavel ✅ Saudável',risco:'badge-risco ⚠️ Risco',critico:'badge-critico 🔴 Crítico',inativo:'badge-inativo 💤 Inativo'};
+  document.getElementById('clientes-grid').innerHTML = lista.map(c=>{
+    const [cls,...txt]=labels[c.categoria].split(' ');
+    return `<div class="card p-5 cursor-pointer hover:border-brand-600 transition-all" onclick="abrirDetalhe('${c.id}')">
+      <div class="flex items-start justify-between mb-3">
+        <div><div class="font-semibold text-white text-sm">${c.empresa}</div><div class="text-xs text-gray-400 mt-0.5">${c.contato}</div></div>
+        <span class="badge ${cls}">${txt.join(' ')}</span>
+      </div>
+      <div class="text-xl font-bold text-white mb-3">R$ ${(c.ticket||0).toLocaleString('pt-BR')}<span class="text-xs text-gray-500 font-normal">/mês</span></div>
+      <div class="flex flex-wrap gap-1 mb-3">${(c.servicos||[]).map(s=>`<span class="chip">${s}</span>`).join('')}</div>
+      ${c.vencimento?`<div class="text-xs text-gray-500 pt-3 border-t border-gray-800">Vence ${fmtData(c.vencimento)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ===== PIPELINE =====
+const ETAPAS=[
+  {id:'identificado',label:'🔍 Identificado',color:'#6b7280'},{id:'abordado',label:'💬 Abordado',color:'#6366f1'},
+  {id:'proposta',label:'📄 Proposta',color:'#fbbf24'},{id:'negociacao',label:'🤝 Negociação',color:'#f97316'},
+  {id:'fechado',label:'✅ Fechado',color:'#34d399'},{id:'perdido',label:'❌ Perdido',color:'#ef4444'},
+];
+function renderPipeline() {
+  document.getElementById('pipeline-board').innerHTML = ETAPAS.map(e=>{
+    const deals=DB.deals.filter(d=>d.etapa===e.id);
+    const total=deals.reduce((s,d)=>s+d.valor,0);
+    return `<div class="kanban-col flex-1 min-w-48" style="min-width:200px">
+      <div class="card p-3 mb-3"><div class="text-xs font-semibold mb-0.5" style="color:${e.color}">${e.label}</div><div class="text-xs text-gray-500">${deals.length} · R$ ${total.toLocaleString('pt-BR')}</div></div>
+      ${deals.map(d=>{
+        const c=DB.clientes.find(x=>x.id===d.clienteId);
+        return `<div class="deal-card">
+          <div class="text-xs font-semibold text-white mb-1">${d.servico}</div>
+          <div class="text-xs text-gray-400 mb-2">${c?c.empresa:'—'}</div>
+          <div class="text-sm font-bold text-green-400">R$ ${d.valor.toLocaleString('pt-BR')}</div>
+          <div class="progress-bar mt-2"><div class="progress-fill" style="width:${d.prob}%"></div></div>
+          <div class="text-xs text-gray-500 mt-1">${d.prob}% chance</div>
+          <select class="input text-xs mt-2" style="padding:4px 8px" onchange="moverDeal('${d.id}',this.value)">
+            ${ETAPAS.map(et=>`<option value="${et.id}" ${d.etapa===et.id?'selected':''}>${et.label}</option>`).join('')}
+          </select>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+function moverDeal(id,etapa) {
+  const d=DB.deals.find(x=>x.id===id);
+  if(d){d.etapa=etapa;saveDB();renderPipeline();toast('Deal atualizado','success');}
+}
+
+// ===== DETALHE CLIENTE =====
+function abrirDetalhe(id) { currentClienteId=id; navigate('cliente-detalhe'); renderDetalhe(); }
+function renderDetalhe() {
+  const c=DB.clientes.find(x=>x.id===currentClienteId); if(!c) return;
+  const ints=DB.interacoes.filter(i=>i.clienteId===c.id).sort((a,b)=>new Date(b.data)-new Date(a.data));
+  const labels={estrategico:'badge-estrategico ⭐ Estratégico',saudavel:'badge-saudavel ✅ Saudável',risco:'badge-risco ⚠️ Risco',critico:'badge-critico 🔴 Crítico',inativo:'badge-inativo 💤 Inativo'};
+  const [cls,...txt]=labels[c.categoria].split(' ');
+  const tipoIcon={call:'📞',email:'📧',meet:'🎥',note:'📝',whatsapp:'💬'};
+  const tipoLabel={call:'Ligação',email:'Email',meet:'Reunião',note:'Nota',whatsapp:'WhatsApp'};
+  document.getElementById('detalhe-content').innerHTML = `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-1 space-y-4">
+        <div class="card p-5">
+          <div class="flex items-start justify-between mb-4">
+            <div><h2 class="text-xl font-bold text-white">${c.empresa}</h2><div class="text-sm text-gray-400 mt-1">${c.contato}</div></div>
+            <span class="badge ${cls}">${txt.join(' ')}</span>
+          </div>
+          <div class="space-y-1.5 text-sm mb-4">
+            ${c.email?`<div class="text-gray-300">📧 <a href="mailto:${c.email}" class="hover:text-white">${c.email}</a></div>`:''}
+            ${c.whatsapp?`<div class="text-gray-300">💬 ${c.whatsapp}</div>`:''}
+          </div>
+          <div class="text-2xl font-bold text-white mb-1">R$ ${(c.ticket||0).toLocaleString('pt-BR')}<span class="text-sm text-gray-400 font-normal">/mês</span></div>
+          ${c.vencimento?`<div class="text-xs text-gray-500 mb-3">Contrato até ${fmtData(c.vencimento)}</div>`:''}
+          <div class="flex flex-wrap gap-1 mb-4">${(c.servicos||[]).map(s=>`<span class="chip">${s}</span>`).join('')}</div>
+          ${c.obs?`<div class="text-xs text-gray-400 pt-3 border-t border-gray-800">${c.obs}</div>`:''}
+          <div class="mt-4 pt-4 border-t border-gray-800 flex gap-2">
+            <button class="btn-ghost text-xs" onclick="editarCliente('${c.id}')">✏️ Editar</button>
+            <button class="btn-primary text-xs" onclick="abrirInteracao('${c.id}')">+ Interação</button>
+          </div>
+        </div>
+      </div>
+      <div class="lg:col-span-2">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-5">
+            <div class="text-sm font-semibold text-white">Histórico de Interações</div>
+            <button class="btn-primary text-xs" onclick="abrirInteracao('${c.id}')">+ Registrar</button>
+          </div>
+          ${ints.map(i=>`
+            <div class="interaction-item ${i.tipo}">
+              <div class="flex items-center gap-2 mb-1">
+                <span>${tipoIcon[i.tipo]||'📝'}</span>
+                <span class="text-xs font-semibold text-white">${tipoLabel[i.tipo]||i.tipo}</span>
+                <span class="text-xs text-gray-500 ml-auto">${fmtData(i.data)}</span>
+              </div>
+              <p class="text-sm text-gray-300">${i.desc}</p>
+              ${i.proximo?`<div class="text-xs text-brand-400 mt-1">→ ${i.proximo}</div>`:''}
+            </div>`).join('')||'<div class="text-sm text-gray-500 text-center py-8">Nenhuma interação registrada ainda.</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ===== EVENTOS / WEBHOOK =====
+function renderEventos() {
+  const eventos = DB.eventos || [];
+  const feed = document.getElementById('eventos-feed');
+  feed.innerHTML = eventos.length ? eventos.slice().reverse().map(e=>{
+    const icon = e.event==='deal_fechado' ? '🎉' : '❌';
+    const cor = e.event==='deal_fechado' ? 'border-green-800 bg-green-950' : 'border-red-800 bg-red-950';
+    return `<div class="p-3 rounded-lg border ${cor} text-xs">
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-white">${icon} ${e.contact}</span>
+        <span class="text-gray-400">${new Date(e.ts).toLocaleString('pt-BR')}</span>
+      </div>
+      <div class="text-gray-400 mt-1">Agente: ${e.agent} · Evento: ${e.event.replace('_',' ')}</div>
+    </div>`;
+  }).join('') : '<div class="text-sm text-gray-500 text-center py-8">Nenhum evento recebido ainda.<br><span class="text-xs">Configure o webhook e peça para seu cliente usar a extensão.</span></div>';
+
+  const fechados=eventos.filter(e=>e.event==='deal_fechado').length;
+  const perdidos=eventos.filter(e=>e.event==='deal_perdido').length;
+  const agentes=[...new Set(eventos.map(e=>e.agent))].length;
+  document.getElementById('ev-total').textContent=eventos.length;
+  document.getElementById('ev-fechados').textContent=fechados;
+  document.getElementById('ev-perdidos').textContent=perdidos;
+  document.getElementById('ev-agentes').textContent=agentes;
+}
+
+function salvarWebhook() {
+  DB.webhookUrl = document.getElementById('webhook-url').value;
+  saveDB(); toast('Webhook salvo!','success');
+}
+
+function simularEvento() {
+  const evento = {
+    id: uid(), event: 'deal_fechado',
+    contact: 'Cliente Teste', agent: 'Agente Demo', ts: Date.now()
+  };
+  if (!DB.eventos) DB.eventos = [];
+  DB.eventos.push(evento);
+  saveDB(); renderEventos(); toast('Evento simulado!','success');
+}
+
+// ===== FORMS =====
+function salvarCliente(e) {
+  e.preventDefault();
+  const id=document.getElementById('cliente-id').value;
+  const servicos=[...document.querySelectorAll('.serv-check:checked')].map(x=>x.value);
+  const dados={empresa:document.getElementById('c-empresa').value,contato:document.getElementById('c-contato').value,
+    email:document.getElementById('c-email').value,whatsapp:document.getElementById('c-whatsapp').value,
+    ticket:+document.getElementById('c-ticket').value,categoria:document.getElementById('c-categoria').value,
+    inicio:document.getElementById('c-inicio').value,vencimento:document.getElementById('c-vencimento').value,
+    servicos,obs:document.getElementById('c-obs').value};
+  if(id){Object.assign(DB.clientes.find(x=>x.id===id),dados);toast('Cliente atualizado!','success');}
+  else{dados.id=uid();DB.clientes.push(dados);toast('Cliente adicionado!','success');}
+  saveDB();closeModal('modal-cliente');
+  const p=document.querySelector('.page.active')?.id?.replace('page-','');
+  if(p==='dashboard') renderDashboard();
+  else if(p==='clientes') renderClientes();
+}
+function editarCliente(id) {
+  const c=DB.clientes.find(x=>x.id===id); if(!c) return;
+  document.getElementById('modal-cliente-title').textContent='Editar Cliente';
+  document.getElementById('cliente-id').value=c.id;
+  document.getElementById('c-empresa').value=c.empresa;
+  document.getElementById('c-contato').value=c.contato;
+  document.getElementById('c-email').value=c.email||'';
+  document.getElementById('c-whatsapp').value=c.whatsapp||'';
+  document.getElementById('c-ticket').value=c.ticket||0;
+  document.getElementById('c-categoria').value=c.categoria;
+  document.getElementById('c-inicio').value=c.inicio||'';
+  document.getElementById('c-vencimento').value=c.vencimento||'';
+  document.getElementById('c-obs').value=c.obs||'';
+  document.querySelectorAll('.serv-check').forEach(cb=>cb.checked=(c.servicos||[]).includes(cb.value));
+  openModal('modal-cliente');
+}
+function abrirInteracao(clienteId) {
+  document.getElementById('int-cliente-id').value=clienteId;
+  document.getElementById('int-data').value=new Date().toISOString().split('T')[0];
+  openModal('modal-interacao');
+}
+function salvarInteracao(e) {
+  e.preventDefault();
+  DB.interacoes.push({id:uid(),clienteId:document.getElementById('int-cliente-id').value,
+    tipo:document.getElementById('int-tipo').value,data:document.getElementById('int-data').value,
+    desc:document.getElementById('int-desc').value,proximo:document.getElementById('int-proximo').value});
+  saveDB();closeModal('modal-interacao');toast('Interação registrada!','success');
+  if(document.querySelector('.page.active')?.id==='page-cliente-detalhe') renderDetalhe();
+}
+function salvarDeal(e) {
+  e.preventDefault();
+  DB.deals.push({id:uid(),clienteId:document.getElementById('deal-cliente').value,
+    servico:document.getElementById('deal-servico').value,valor:+document.getElementById('deal-valor').value,
+    prob:+document.getElementById('deal-prob').value,etapa:document.getElementById('deal-etapa').value,
+    obs:document.getElementById('deal-obs').value});
+  saveDB();closeModal('modal-deal');toast('Oportunidade criada!','success');renderPipeline();
+}
+function openModal(id) {
+  if(id==='modal-cliente'&&!document.getElementById('cliente-id').value){
+    document.getElementById('modal-cliente-title').textContent='Novo Cliente';
+    document.getElementById('form-cliente').reset();
+    document.getElementById('cliente-id').value='';
+  }
+  if(id==='modal-deal'){
+    const sel=document.getElementById('deal-cliente');
+    sel.innerHTML=DB.clientes.filter(c=>c.categoria!=='inativo').map(c=>`<option value="${c.id}">${c.empresa}</option>`).join('');
+  }
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if(id==='modal-cliente'){document.getElementById('form-cliente').reset();document.getElementById('cliente-id').value='';}
+}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id);}));
+
+// ===== FINANCEIRO =====
+let finChart = null;
+
+function populateMesFiltro() {
+  const sel = document.getElementById('fin-filtro-mes');
+  if (!sel) return;
+  const now = new Date();
+  const opts = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.toISOString().slice(0,7);
+    const lbl = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    opts.push(`<option value="${val}"${i===0?' selected':''}>${lbl.charAt(0).toUpperCase()+lbl.slice(1)}</option>`);
+  }
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' + opts.join('');
+}
+
+function renderFinanceiro() {
+  populateMesFiltro();
+  const filtro = document.getElementById('fin-filtro-mes')?.value || 'todos';
+  const now = new Date();
+  const anoAtual = now.getFullYear();
+
+  const recebidos = DB.financeiro.filter(r => r.status === 'recebido');
+  const pendentes = DB.financeiro.filter(r => r.status === 'pendente');
+
+  // Filtra pelo mês selecionado
+  const filtrados = filtro === 'todos' ? DB.financeiro
+    : DB.financeiro.filter(r => r.data && r.data.startsWith(filtro));
+
+  // KPI: faturado no mês selecionado (recebido)
+  const mesFaturado = filtro === 'todos'
+    ? recebidos.filter(r => r.data && r.data.startsWith(now.toISOString().slice(0,7)))
+    : recebidos.filter(r => r.data && r.data.startsWith(filtro));
+  document.getElementById('fin-kpi-mes').textContent = 'R$ ' + mesFaturado.reduce((s,r)=>s+r.valor,0).toLocaleString('pt-BR');
+
+  // KPI: pendente
+  document.getElementById('fin-kpi-pendente').textContent = 'R$ ' + pendentes.reduce((s,r)=>s+r.valor,0).toLocaleString('pt-BR');
+
+  // KPI: ano
+  const anoFaturado = recebidos.filter(r => r.data && r.data.startsWith(anoAtual+''));
+  document.getElementById('fin-kpi-ano').textContent = 'R$ ' + anoFaturado.reduce((s,r)=>s+r.valor,0).toLocaleString('pt-BR');
+  document.getElementById('fin-kpi-ano-label').textContent = 'faturado em ' + anoAtual;
+
+  // KPI: média últimos 3 meses
+  const ultimos3 = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.toISOString().slice(0,7);
+    ultimos3.push(recebidos.filter(r=>r.data&&r.data.startsWith(key)).reduce((s,r)=>s+r.valor,0));
+  }
+  const media = ultimos3.reduce((a,b)=>a+b,0)/3;
+  document.getElementById('fin-kpi-media').textContent = 'R$ ' + Math.round(media).toLocaleString('pt-BR');
+
+  // Gráfico mensal (últimos 6 meses)
+  const meses = [], totais = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.toISOString().slice(0,7);
+    const lbl = d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+    meses.push(lbl.charAt(0).toUpperCase()+lbl.slice(1));
+    totais.push(recebidos.filter(r=>r.data&&r.data.startsWith(key)).reduce((s,r)=>s+r.valor,0));
+  }
+  const ctx = document.getElementById('fin-chart').getContext('2d');
+  if (finChart) finChart.destroy();
+  finChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: meses,
+      datasets: [{ label:'Faturado (R$)', data: totais, backgroundColor:'rgba(99,102,241,.7)', borderRadius:6 }]
+    },
+    options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{color:'#6b7280',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'#1f2937'}},x:{ticks:{color:'#6b7280'},grid:{display:false}}}, responsive:true }
+  });
+
+  // Top serviços
+  const porServico = {};
+  recebidos.forEach(r => { porServico[r.servico] = (porServico[r.servico]||0) + r.valor; });
+  const sorted = Object.entries(porServico).sort((a,b)=>b[1]-a[1]);
+  const totalSvcs = sorted.reduce((s,[,v])=>s+v,0);
+  document.getElementById('fin-servicos').innerHTML = sorted.length
+    ? sorted.map(([nome,val]) => {
+        const pct = totalSvcs ? Math.round((val/totalSvcs)*100) : 0;
+        return `<div class="mb-3">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-gray-300">${nome}</span>
+            <span class="text-white font-bold">R$ ${val.toLocaleString('pt-BR')}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('')
+    : '<div class="text-gray-500 text-sm text-center pt-4">Nenhuma receita ainda</div>';
+
+  // Tabela
+  const tbody = document.getElementById('fin-tabela');
+  const statusBadge = { recebido:'<span style="color:#34d399;font-size:11px;font-weight:700;">✅ Recebido</span>', pendente:'<span style="color:#fbbf24;font-size:11px;font-weight:700;">⏳ Pendente</span>' };
+  const tipoBadge = { avulso:'Avulso', recorrente:'Recorrente', parcelado:'Parcelado' };
+  const sorted2 = [...filtrados].sort((a,b)=>b.data.localeCompare(a.data));
+  document.getElementById('fin-vazio').style.display = sorted2.length ? 'none' : 'block';
+  document.getElementById('fin-count').textContent = sorted2.length + ' lançamento(s)';
+  tbody.innerHTML = sorted2.map(r => `
+    <tr style="border-bottom:1px solid #1f2937;" onmouseover="this.style.background='#1a2234'" onmouseout="this.style.background='transparent'">
+      <td style="padding:10px 12px;color:#9ca3af;">${fmtData(r.data)}</td>
+      <td style="padding:10px 12px;color:#f9fafb;font-weight:600;">${r.cliente}</td>
+      <td style="padding:10px 12px;color:#d1d5db;">${r.servico}</td>
+      <td style="padding:10px 12px;color:#6b7280;font-size:12px;">${tipoBadge[r.tipo]||r.tipo}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;color:${r.status==='recebido'?'#34d399':'#fbbf24'};">R$ ${r.valor.toLocaleString('pt-BR')}</td>
+      <td style="padding:10px 12px;text-align:center;">${statusBadge[r.status]||r.status}</td>
+      <td style="padding:10px 12px;text-align:right;">
+        <button onclick="toggleStatusReceita('${r.id}')" title="Alternar status" style="background:none;border:1px solid #374151;border-radius:5px;color:#9ca3af;font-size:10px;padding:3px 7px;cursor:pointer;margin-right:4px;">↔</button>
+        <button onclick="deleteReceita('${r.id}')" title="Excluir" style="background:none;border:1px solid #374151;border-radius:5px;color:#6b7280;font-size:10px;padding:3px 7px;cursor:pointer;">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+function salvarReceita(e) {
+  e.preventDefault();
+  const hoje = new Date().toISOString().split('T')[0];
+  const rec = {
+    id: uid(),
+    data:    document.getElementById('r-data').value || hoje,
+    valor:   parseFloat(document.getElementById('r-valor').value) || 0,
+    cliente: document.getElementById('r-cliente').value.trim(),
+    servico: document.getElementById('r-servico').value.trim(),
+    tipo:    document.getElementById('r-tipo').value,
+    status:  document.getElementById('r-status').value,
+    obs:     document.getElementById('r-obs').value.trim(),
+  };
+  DB.financeiro.push(rec);
+  saveDB();
+  closeModal('modal-receita');
+  e.target.reset();
+  renderFinanceiro();
+  toast('Receita lançada com sucesso!');
+}
+
+function toggleStatusReceita(id) {
+  const r = DB.financeiro.find(x=>x.id===id);
+  if (!r) return;
+  r.status = r.status === 'recebido' ? 'pendente' : 'recebido';
+  saveDB(); renderFinanceiro();
+}
+
+function deleteReceita(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  DB.financeiro = DB.financeiro.filter(x=>x.id!==id);
+  saveDB(); renderFinanceiro();
+  toast('Lançamento excluído','warning');
+}
+
+// Pre-fill today's date when opening modal
+document.getElementById('modal-receita').addEventListener('click', function(e){
+  if(e.target===this) closeModal('modal-receita');
+});
+function openModalReceita() {
+  document.getElementById('r-data').value = new Date().toISOString().split('T')[0];
+  openModal('modal-receita');
+}
+
+// ===== HELPERS =====
+function fmtData(str) {
+  if(!str) return '';
+  const [y,m,d]=str.split('-'); return `${d}/${m}/${y}`;
+}
+function toast(msg,type='success') {
+  const n=document.getElementById('notification');
+  document.getElementById('notif-msg').textContent=msg;
+  document.getElementById('notif-icon').textContent=type==='success'?'✓':'⚠';
+  n.className='notification show '+type;
+  setTimeout(()=>n.className='notification',3000);
+}
+
+// ===== INIT =====
+loadDB(); renderDashboard();
+</script>
+</body>
+</html>
