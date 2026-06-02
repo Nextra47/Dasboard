@@ -866,7 +866,11 @@ function showAgendaList() {
 
     S.appendChild(modal);
     S.getElementById('ag-close').addEventListener('click', () => modal.remove());
-    S.getElementById('ag-new').addEventListener('click', () => { modal.remove(); showScheduleModal(currentContact || ''); });
+    S.getElementById('ag-new').addEventListener('click', () => {
+      modal.remove();
+      detectContact(); // captura o contato aberto na hora (igual ao botão verde)
+      showScheduleModal(currentContactName || '');
+    });
 
     modal.querySelectorAll('button[data-cancel]').forEach(btn => {
       btn.addEventListener('click', async () => {
