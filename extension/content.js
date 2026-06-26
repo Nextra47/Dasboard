@@ -957,6 +957,19 @@ function showDisparoModal() {
     <textarea id="d-msg" placeholder="Olá {nome}, tudo bem?&#10;&#10;Escreva sua mensagem aqui..." style="width:100%;height:100px;background:#1a2234;border:1px solid #374151;border-radius:8px;color:#f9fafb;padding:10px;font-size:12px;resize:vertical;outline:none;font-family:inherit;line-height:1.5;"></textarea>
     <div style="font-size:10px;color:#4b5563;margin-top:3px;margin-bottom:12px;">Use <span style="color:#818cf8;font-weight:700;">{nome}</span> para inserir o nome do contato automaticamente.</div>
 
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🖼️ Imagem (opcional)</div>
+    <div id="d-img-preview" style="display:none;margin-bottom:8px;text-align:center;">
+      <img id="d-img-thumb" style="max-width:100%;max-height:110px;border-radius:8px;border:1px solid #374151;object-fit:cover;">
+      <div style="margin-top:6px;">
+        <button id="d-img-remove" style="background:#7f1d1d;border:none;color:#fca5a5;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">✕ Remover imagem</button>
+      </div>
+    </div>
+    <label id="d-img-label" style="display:flex;align-items:center;gap:8px;background:#1a2234;border:1px dashed #374151;border-radius:8px;padding:10px 14px;cursor:pointer;color:#9ca3af;font-size:12px;margin-bottom:4px;">
+      <span style="font-size:16px;">📎</span> Clique para anexar uma imagem
+      <input id="d-img-input" type="file" accept="image/*" style="display:none;">
+    </label>
+    <div style="font-size:10px;color:#4b5563;margin-bottom:12px;">A mesma imagem vai para todos. A mensagem vira legenda. Máx. 2 MB.</div>
+
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">Delay entre mensagens</div>
       <span id="d-dv" style="font-size:12px;font-weight:700;color:#6366f1;">25s</span>
@@ -994,6 +1007,27 @@ function showDisparoModal() {
   modal.addEventListener('change', updateCount);
 
   S.getElementById('dc').addEventListener('click', () => modal.remove());
+
+  // Imagem do disparo
+  let _dispImgBase64 = null;
+  S.getElementById('d-img-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast('Imagem muito grande! Máx. 2 MB.', 'warn'); return; }
+    compressImage(file).then(b64 => {
+      _dispImgBase64 = b64;
+      S.getElementById('d-img-thumb').src = b64;
+      S.getElementById('d-img-preview').style.display = '';
+      S.getElementById('d-img-label').style.display = 'none';
+    });
+  });
+  S.getElementById('d-img-remove').addEventListener('click', () => {
+    _dispImgBase64 = null;
+    S.getElementById('d-img-input').value = '';
+    S.getElementById('d-img-preview').style.display = 'none';
+    S.getElementById('d-img-label').style.display = '';
+  });
+
   S.getElementById('d-delay').addEventListener('input', e => {
     S.getElementById('d-dv').textContent = e.target.value + 's';
   });
@@ -1007,15 +1041,15 @@ function showDisparoModal() {
   });
   S.getElementById('d-start').addEventListener('click', () => {
     const msg = S.getElementById('d-msg').value.trim();
-    if (!msg) { toast('Digite a mensagem primeiro!', 'warn'); return; }
+    if (!msg && !_dispImgBase64) { toast('Digite a mensagem ou anexe uma imagem!', 'warn'); return; }
     const selected = [...modal.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.dataset.contact);
     if (!selected.length) { toast('Selecione pelo menos 1 contato!', 'warn'); return; }
     const delay = parseInt(S.getElementById('d-delay').value) * 1000;
-    runDisparo(selected, msg, delay, modal);
+    runDisparo(selected, msg, delay, modal, _dispImgBase64);
   });
 }
 
-async function runDisparo(contacts, message, delay, modal) {
+async function runDisparo(contacts, message, delay, modal, imageBase64 = null) {
   const startBtn = S.getElementById('d-start');
   const prog     = S.getElementById('d-prog');
   const dCur     = S.getElementById('d-cur');
@@ -1038,7 +1072,15 @@ async function runDisparo(contacts, message, delay, modal) {
 
     const personalMsg = message.replace(/\{nome\}/gi, name.split(' ')[0]);
     try {
-      await disparoSend(name, personalMsg);
+      if (imageBase64) {
+        // Abre o chat e envia a imagem com a mensagem como legenda
+        await openChatForDisparo(name);
+        await sleep(1800);
+        const ok = await sendImageToWhatsApp(imageBase64, personalMsg);
+        if (!ok) throw new Error('Falha ao enviar imagem');
+      } else {
+        await disparoSend(name, personalMsg);
+      }
       sent++;
     } catch (e) {
       failed++;
