@@ -133,6 +133,10 @@ function inject() {
   font-size:11px;padding:3px 6px;cursor:pointer;outline:none;}
 .bsel:focus{border-color:#6366f1;}
 .ghost{color:#4b5563;font-size:12px;}
+.bcol{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;
+  background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.4);}
+.bcol-none{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;
+  background:rgba(75,85,99,.15);color:#6b7280;border:1px dashed #374151;}
 
 .bar-actions{display:flex;gap:6px;align-items:center;margin-left:auto;flex-shrink:0;}
 .btn{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;
@@ -351,11 +355,19 @@ function refreshBadge() {
   }
   const c  = ensureContact(currentContactId, currentContactName);
   const st = STAGES.find(s => s.id === c.stage) || STAGES[0];
+
+  // Descobre em quais colunas esse contato está
+  const inCols = db.columns.filter(col => (col.contactIds || []).includes(currentContactId));
+  const colsBadge = inCols.length
+    ? inCols.map(col => `<span class="bcol" title="Este contato está na coluna ${col.name}">📋 ${col.name}</span>`).join('')
+    : '<span class="bcol-none">Sem coluna</span>';
+
   badge.innerHTML = `
     <span class="bname">${currentContactName}</span>
     <span class="bstage" style="color:${st.color};border-color:${st.color};background:${st.color}18">
       ${st.emoji} ${st.label}
     </span>
+    ${colsBadge}
     <select class="bsel" id="stage-sel">
       ${STAGES.map(s => `<option value="${s.id}"${c.stage===s.id?' selected':''}>${s.emoji} ${s.label}</option>`).join('')}
     </select>
