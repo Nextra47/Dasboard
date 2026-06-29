@@ -769,7 +769,7 @@ function showScheduleModal(contact) {
       <span style="font-size:16px;">📎</span> Clique para anexar uma imagem
       <input id="sc-img-input" type="file" accept="image/*" style="display:none;">
     </label>
-    <div style="font-size:10px;color:#4b5563;margin-bottom:12px;">Imagem enviada como legenda. Máx. 2 MB.</div>
+    <div style="font-size:10px;color:#4b5563;margin-bottom:12px;">A imagem e o texto são enviados em mensagens separadas. Máx. 2 MB.</div>
 
     <div style="background:#0c1a0c;border:1px solid #14532d;border-radius:8px;padding:9px 11px;margin-bottom:14px;font-size:11px;color:#86efac;line-height:1.5;">
       ℹ️ O WhatsApp precisa estar aberto no computador no horário agendado.<br>
@@ -910,8 +910,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       ? (async () => {
           await openChatForDisparo(item.contact);
           await sleep(1800);
-          const sent = await sendImageToWhatsApp(item.imageBase64, item.message || '');
+          const sent = await sendImageToWhatsApp(item.imageBase64);
           if (!sent) throw new Error('Falha ao enviar imagem');
+          if (item.message) { await sleep(1200); await sendTextInOpenChat(item.message); }
         })()
       : disparoSend(item.contact, item.message);
     sendPromise
@@ -982,7 +983,7 @@ function showDisparoModal() {
       <span style="font-size:16px;">📎</span> Clique para anexar uma imagem
       <input id="d-img-input" type="file" accept="image/*" style="display:none;">
     </label>
-    <div style="font-size:10px;color:#4b5563;margin-bottom:12px;">A mesma imagem vai para todos. A mensagem vira legenda. Máx. 2 MB.</div>
+    <div style="font-size:10px;color:#4b5563;margin-bottom:12px;">A mesma imagem vai para todos. A imagem e o texto são enviados em mensagens separadas. Máx. 2 MB.</div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
       <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;">Delay entre mensagens</div>
@@ -1097,11 +1098,12 @@ async function runDisparo(contacts, message, delay, modal, imageBase64 = null) {
     const personalMsg = message.replace(/\{nome\}/gi, name.split(' ')[0]);
     try {
       if (imageBase64) {
-        // Abre o chat e envia a imagem com a mensagem como legenda
+        // Abre o chat, envia a imagem e depois o texto (mensagens separadas)
         await openChatForDisparo(name);
         await sleep(1800);
-        const ok = await sendImageToWhatsApp(imageBase64, personalMsg);
+        const ok = await sendImageToWhatsApp(imageBase64);
         if (!ok) throw new Error('Falha ao enviar imagem');
+        if (personalMsg) { await sleep(1200); await sendTextInOpenChat(personalMsg); }
       } else {
         await disparoSend(name, personalMsg);
       }
@@ -1155,8 +1157,10 @@ function compressImage(file, maxW = 900, quality = 0.75) {
   });
 }
 
-async function sendImageToWhatsApp(base64, caption) {
-  // Converte base64 -> File
+// Envia SÓ a imagem (a legenda/texto vai numa mensagem separada — ver sendTextInOpenChat).
+// Motivo: o editor de imagem do WhatsApp atual não permite setar a legenda via código
+// de forma confiável, então mandamos imagem e texto em mensagens separadas.
+async function sendImageToWhatsApp(base64) {
   const res = await fetch(base64);
   const blob = await res.blob();
   const file = new File([blob], 'imagem.jpg', { type: 'image/jpeg' });
@@ -1186,31 +1190,35 @@ async function sendImageToWhatsApp(base64, caption) {
   dt.items.add(file);
   Object.defineProperty(fileInput, 'files', { value: dt.files, configurable: true, writable: true });
   fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-  await sleep(2200); // espera a tela de pré-visualização abrir
+  await sleep(2400); // espera a tela de pré-visualização abrir
 
-  // Legenda (no WhatsApp atual é o próprio compositor: data-tab="10")
-  if (caption) {
-    const captionInput =
-      document.querySelector('div[contenteditable="true"][data-tab="10"]') ||
-      document.querySelector('div[aria-label^="Digite uma mensagem"]') ||
-      document.querySelector('div[aria-label^="Type a message"]') ||
-      document.querySelector('div[contenteditable="true"][role="textbox"]');
-    if (captionInput) {
-      captionInput.focus();
-      document.execCommand('selectAll', false, null);
-      document.execCommand('insertText', false, caption);
-      await sleep(400);
-    }
-  }
-
-  // Botão enviar (atual: aria-label "Enviar X item(ns)..." / ícone wds-ic-send-filled)
+  // Botão enviar do editor (atual: aria-label "Enviar X item(ns)..." / ícone wds-ic-send-filled)
   const sendBtn =
     document.querySelector('[data-icon="wds-ic-send-filled"]')?.closest('div[role="button"],button') ||
     document.querySelector('[aria-label^="Enviar"]') ||
     document.querySelector('[aria-label^="Send"]') ||
     document.querySelector('[data-icon="send"]')?.closest('div[role="button"],button');
-  if (sendBtn) { sendBtn.click(); await sleep(500); return true; }
+  if (sendBtn) { sendBtn.click(); await sleep(800); return true; }
   return false;
+}
+
+// Digita e envia um texto no chat JÁ ABERTO (usado para mandar a legenda após a imagem)
+async function sendTextInOpenChat(message) {
+  const msgBox = findMessageInput();
+  if (!msgBox) return false;
+  msgBox.focus();
+  document.execCommand('selectAll', false, null);
+  document.execCommand('delete', false, null);
+  document.execCommand('insertText', false, message);
+  await sleep(400);
+  const sendBtn =
+    document.querySelector('footer [data-icon="wds-ic-send-filled"]')?.closest('div[role="button"],button') ||
+    document.querySelector('footer button[aria-label="Enviar"]') ||
+    document.querySelector('button[aria-label="Send"]');
+  if (sendBtn) { sendBtn.click(); }
+  else { msgBox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })); }
+  await sleep(400);
+  return true;
 }
 
 function findMessageInput() {

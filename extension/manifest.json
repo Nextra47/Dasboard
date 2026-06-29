@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nextra CRM — WhatsApp",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "CRM de vendas e gestão de leads direto no WhatsApp Web. Pipeline, disparo em massa e agendamento de mensagens.",
   "icons": {
     "16":  "icons/icon16.png",
