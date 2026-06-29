@@ -16,6 +16,8 @@ let currentContactId   = null; // ID permanente (telefone ou fallback)
 let currentContactName = null; // nome de exibição (pode mudar)
 let panelOpen = false;
 let S = null; // shadow root
+let disparoStop = false;    // flag para interromper o disparo em massa
+let disparoRunning = false; // trava para impedir disparo duplicado
 
 // ── Storage ──────────────────────────────────────────────
 function loadDB() {
@@ -1052,6 +1054,7 @@ function showDisparoModal() {
     updateCount();
   });
   S.getElementById('d-start').addEventListener('click', () => {
+    if (disparoRunning) return; // já está enviando — o clique de "Parar" é tratado em runDisparo
     const msg = S.getElementById('d-msg').value.trim();
     if (!msg && !_dispImgBase64) { toast('Digite a mensagem ou anexe uma imagem!', 'warn'); return; }
     const selected = [...modal.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.dataset.contact);
@@ -1068,15 +1071,24 @@ async function runDisparo(contacts, message, delay, modal, imageBase64 = null) {
   const dTot     = S.getElementById('d-tot');
   const dBar     = S.getElementById('d-bar');
 
-  startBtn.disabled = true;
-  startBtn.textContent = '⏳ Enviando...';
-  startBtn.style.background = '#374151';
+  disparoStop = false; // reseta a flag a cada início
+  disparoRunning = true;
+
+  // Botão vira "Parar Disparo"
+  startBtn.disabled = false;
+  startBtn.textContent = '🛑 Parar Disparo';
+  startBtn.style.background = '#dc2626';
+  const stopHandler = () => { disparoStop = true; startBtn.textContent = '⏳ Parando...'; startBtn.disabled = true; };
+  startBtn.addEventListener('click', stopHandler);
+
   prog.style.display = 'block';
   dTot.textContent = contacts.length;
 
-  let sent = 0, failed = 0;
+  let sent = 0, failed = 0, stopped = false;
 
   for (let i = 0; i < contacts.length; i++) {
+    if (disparoStop) { stopped = true; break; }
+
     const name = contacts[i];
     dCur.textContent = i + 1;
     dBar.style.width = Math.round((i / contacts.length) * 100) + '%';
@@ -1099,13 +1111,27 @@ async function runDisparo(contacts, message, delay, modal, imageBase64 = null) {
       toast(`Falha: ${name}`, 'warn');
     }
 
-    if (i < contacts.length - 1) await sleep(delay);
+    // Delay interrompível: checa a flag a cada 250ms
+    if (i < contacts.length - 1) {
+      const steps = Math.ceil(delay / 250);
+      for (let s = 0; s < steps; s++) {
+        if (disparoStop) break;
+        await sleep(250);
+      }
+    }
   }
 
+  startBtn.removeEventListener('click', stopHandler);
+  disparoRunning = false;
   dBar.style.width = '100%';
-  await sleep(600);
+  await sleep(400);
   modal.remove();
-  toast(`✅ Disparo pronto! ${sent} enviados${failed ? ` · ${failed} falhas` : ''}`, 'ok');
+
+  if (stopped) {
+    toast(`🛑 Disparo interrompido. ${sent} enviados${failed ? ` · ${failed} falhas` : ''}`, 'warn');
+  } else {
+    toast(`✅ Disparo pronto! ${sent} enviados${failed ? ` · ${failed} falhas` : ''}`, 'ok');
+  }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
