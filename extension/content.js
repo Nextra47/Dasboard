@@ -1156,24 +1156,25 @@ function compressImage(file, maxW = 900, quality = 0.75) {
 }
 
 async function sendImageToWhatsApp(base64, caption) {
-  // Convert base64 to File
+  // Converte base64 -> File
   const res = await fetch(base64);
   const blob = await res.blob();
   const file = new File([blob], 'imagem.jpg', { type: 'image/jpeg' });
 
-  // Find WhatsApp's hidden file input for images (inside attachment menu)
-  // First try: look for existing file inputs
+  // Acha o input de arquivo de imagem (WhatsApp atual: accept="image/*")
   let fileInput = [...document.querySelectorAll('input[type="file"]')]
     .find(i => i.accept && (i.accept.includes('image') || i.accept.includes('video')));
 
   if (!fileInput) {
-    // Click the attach button to reveal the inputs
-    const attachBtn = document.querySelector('[data-testid="attach-menu-icon"]') ||
+    // Abre o menu de anexar (ícone atual: plus-rounded)
+    const attachBtn =
+      document.querySelector('span[data-icon="plus-rounded"]')?.closest('div[role="button"],button') ||
       document.querySelector('span[data-icon="attach-menu-plus"]')?.closest('button') ||
-      document.querySelector('button[title="Anexar"]');
+      document.querySelector('button[title="Anexar"]') ||
+      document.querySelector('[aria-label="Anexar"]');
     if (attachBtn) {
       attachBtn.click();
-      await sleep(600);
+      await sleep(700);
       fileInput = [...document.querySelectorAll('input[type="file"]')]
         .find(i => i.accept && (i.accept.includes('image') || i.accept.includes('video')));
     }
@@ -1185,23 +1186,30 @@ async function sendImageToWhatsApp(base64, caption) {
   dt.items.add(file);
   Object.defineProperty(fileInput, 'files', { value: dt.files, configurable: true, writable: true });
   fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-  await sleep(2000); // Wait for WhatsApp preview
+  await sleep(2200); // espera a tela de pré-visualização abrir
 
-  // Add caption if provided
+  // Legenda (no WhatsApp atual é o próprio compositor: data-tab="10")
   if (caption) {
-    const captionInput = document.querySelector('[data-testid="media-caption-input"]') ||
-      document.querySelector('div[contenteditable][data-tab]');
+    const captionInput =
+      document.querySelector('div[contenteditable="true"][data-tab="10"]') ||
+      document.querySelector('div[aria-label^="Digite uma mensagem"]') ||
+      document.querySelector('div[aria-label^="Type a message"]') ||
+      document.querySelector('div[contenteditable="true"][role="textbox"]');
     if (captionInput) {
       captionInput.focus();
+      document.execCommand('selectAll', false, null);
       document.execCommand('insertText', false, caption);
-      await sleep(300);
+      await sleep(400);
     }
   }
 
-  // Click send
-  const sendBtn = document.querySelector('[data-testid="send"]') ||
-    document.querySelector('button[aria-label="Enviar"]');
-  if (sendBtn) { sendBtn.click(); return true; }
+  // Botão enviar (atual: aria-label "Enviar X item(ns)..." / ícone wds-ic-send-filled)
+  const sendBtn =
+    document.querySelector('[data-icon="wds-ic-send-filled"]')?.closest('div[role="button"],button') ||
+    document.querySelector('[aria-label^="Enviar"]') ||
+    document.querySelector('[aria-label^="Send"]') ||
+    document.querySelector('[data-icon="send"]')?.closest('div[role="button"],button');
+  if (sendBtn) { sendBtn.click(); await sleep(500); return true; }
   return false;
 }
 
